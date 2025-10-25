@@ -28,7 +28,6 @@ func DefaultConfig() Config {
 	return defaultConfig
 }
 
-// Loads config from yaml
 func Load(filename string) (Config, error) {
 	var config Config
 
@@ -47,7 +46,6 @@ func Load(filename string) (Config, error) {
 	return config, nil
 }
 
-// Saves config to yaml
 func Save(filename string, cfg Config) error {
 	file, err := yaml.Marshal(cfg)
 

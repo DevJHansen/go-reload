@@ -62,6 +62,13 @@ func main() {
 	}
 
 	builder := builder.New(cfg.RunCmd)
+	buildErr := builder.Build(cfg.BuildCmd)
+
+	if buildErr != nil {
+		fmt.Printf("failed to build: %+v\n", buildErr)
+		return
+	}
+
 	err := builder.Start()
 
 	if err != nil {
