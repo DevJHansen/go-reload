@@ -12,9 +12,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DevJHansen/go-reload/config"
+	"github.com/gorilla/websocket"
 )
 
 //go:embed socket.html
@@ -22,12 +24,24 @@ var socketFile string
 
 type Proxy struct {
 	proxyServer *http.Server
+	clients     map[*websocket.Conn]bool
+	clientsMu   sync.RWMutex
+	upgrader    websocket.Upgrader
 }
 
-func Start(c *config.Config) (Proxy, error) {
+func Start(c *config.Config) (*Proxy, error) {
+	p := &Proxy{
+		clients: make(map[*websocket.Conn]bool),
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	}
+
 	targetUrl, err := url.Parse(fmt.Sprintf("http://localhost:%d", c.AppPort))
 	if err != nil {
-		return Proxy{}, fmt.Errorf("failed to parse target URL: %w", err)
+		return &Proxy{}, fmt.Errorf("failed to parse target URL: %w", err)
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetUrl)
@@ -62,7 +76,38 @@ func Start(c *config.Config) (Proxy, error) {
 		proxy.ServeHTTP(w, r)
 	})
 
-	proxyServer := &http.Server{
+	mux.HandleFunc("/reload", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := p.upgrader.Upgrade(w, r, nil)
+
+		if err != nil {
+			log.Printf("Error upgrading to web socket: %v", err)
+			return
+		}
+
+		defer func() {
+			p.clientsMu.Lock()
+			delete(p.clients, conn)
+			p.clientsMu.Unlock()
+			conn.Close()
+			log.Printf("WebSocket client disconnected. Total clients: %d", len(p.clients))
+		}()
+
+		p.clientsMu.Lock()
+		p.clients[conn] = true
+		p.clientsMu.Unlock()
+
+		log.Printf("WebSocket client connected. Total clients: %d", len(p.clients))
+
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+		}
+
+	})
+
+	p.proxyServer = &http.Server{
 		Addr:    fmt.Sprintf(":%d", c.ProxyPort),
 		Handler: mux,
 	}
@@ -70,12 +115,12 @@ func Start(c *config.Config) (Proxy, error) {
 	fmt.Printf("Proxy running on :%d, forwarding to :%d\n", c.ProxyPort, c.AppPort)
 
 	go func() {
-		if err := proxyServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := p.proxyServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("Proxy server error: %v", err)
 		}
 	}()
 
-	return Proxy{proxyServer: proxyServer}, nil
+	return p, nil
 }
 
 func (proxy *Proxy) Stop() error {
@@ -91,4 +136,18 @@ func (proxy *Proxy) Stop() error {
 	}
 
 	return nil
+}
+
+func (p *Proxy) Broadcast(message string) {
+	p.clientsMu.RLock()
+	defer p.clientsMu.RUnlock()
+
+	log.Printf("Broadcasting to %d clients: %s", len(p.clients), message)
+
+	for client := range p.clients {
+		err := client.WriteMessage(websocket.TextMessage, []byte(message))
+		if err != nil {
+			log.Printf("Error broadcasting to client: %v", err)
+		}
+	}
 }

@@ -2,14 +2,17 @@ package watcher
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"slices"
 
 	"github.com/DevJHansen/go-reload/builder"
 	"github.com/DevJHansen/go-reload/config"
+	"github.com/DevJHansen/go-reload/reloader"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -18,9 +21,10 @@ type Watcher struct {
 	builder     *builder.Builder
 	config      *config.Config
 	watcher     *fsnotify.Watcher
+	proxy       *reloader.Proxy
 }
 
-func New(projectRoot string, b *builder.Builder, c *config.Config) (*Watcher, error) {
+func New(projectRoot string, b *builder.Builder, c *config.Config, p *reloader.Proxy) (*Watcher, error) {
 	fsWatcher, err := fsnotify.NewWatcher()
 
 	if err != nil {
@@ -32,6 +36,7 @@ func New(projectRoot string, b *builder.Builder, c *config.Config) (*Watcher, er
 		builder:     b,
 		config:      c,
 		watcher:     fsWatcher,
+		proxy:       p,
 	}
 
 	if err := w.addDirectories(); err != nil {
@@ -64,6 +69,18 @@ func (w *Watcher) addDirectories() error {
 	})
 }
 
+func (w *Watcher) waitForServer() {
+	maxAttempts := 10
+	for i := 0; i < maxAttempts; i++ {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", w.config.AppPort), time.Second)
+		if err == nil {
+			conn.Close()
+			return
+		}
+		time.Sleep(time.Second)
+	}
+}
+
 func (w *Watcher) Watch() {
 	for {
 		select {
@@ -87,6 +104,8 @@ func (w *Watcher) Watch() {
 
 				// Start the new version
 				w.builder.Start()
+				w.waitForServer()
+				w.proxy.Broadcast("reload")
 			}
 
 		case err := <-w.watcher.Errors:

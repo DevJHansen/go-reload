@@ -84,7 +84,7 @@ func main() {
 		return
 	}
 
-	w, err := watcher.New(dir, builder, &cfg)
+	w, err := watcher.New(dir, builder, &cfg, proxy)
 
 	if err != nil {
 		fmt.Printf("Error starting watcher: %+v", err)
