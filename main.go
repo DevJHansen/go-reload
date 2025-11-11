@@ -9,6 +9,7 @@ import (
 
 	"github.com/DevJHansen/go-reload/builder"
 	"github.com/DevJHansen/go-reload/config"
+	"github.com/DevJHansen/go-reload/reloader"
 	"github.com/DevJHansen/go-reload/watcher"
 )
 
@@ -76,12 +77,25 @@ func main() {
 		return
 	}
 
-	w, err := watcher.New(dir, builder, &cfg)
+	proxy, err := reloader.Start(&cfg)
+
+	if err != nil {
+		fmt.Printf("failed to start proxy: %+v\n", err)
+		return
+	}
+
+	w, err := watcher.New(dir, builder, &cfg, proxy)
 
 	if err != nil {
 		fmt.Printf("Error starting watcher: %+v", err)
 		fmt.Println("Shutting down...")
-		builder.Stop()
+		if builderErr := builder.Stop(); builderErr != nil {
+			fmt.Printf("Error stopping builder: %v\n", builderErr)
+		}
+
+		if proxyErr := proxy.Stop(); proxyErr != nil {
+			fmt.Printf("Error stopping proxy: %v\n", proxyErr)
+		}
 		return
 	}
 
@@ -92,8 +106,12 @@ func main() {
 	// Ensure we always try to stop on exit
 	defer func() {
 		fmt.Println("Cleaning up...")
-		if err := builder.Stop(); err != nil {
-			fmt.Printf("Error stopping builder: %v\n", err)
+		if builderErr := builder.Stop(); builderErr != nil {
+			fmt.Printf("Error stopping builder: %v\n", builderErr)
+		}
+
+		if proxyErr := proxy.Stop(); proxyErr != nil {
+			fmt.Printf("Error stopping proxy: %v\n", proxyErr)
 		}
 	}()
 

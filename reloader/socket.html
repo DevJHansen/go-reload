@@ -1,0 +1,23 @@
+<script>
+  const ws = new WebSocket('ws://localhost:3001/reload');
+
+  ws.addEventListener('open', (event) => {
+    console.log('WebSocket connected');
+  });
+
+  ws.addEventListener('message', (event) => {
+    console.log('Message from server:', event.data);
+
+    if (event.data === 'reload') {
+      location.reload();
+    }
+  });
+
+  ws.addEventListener('close', (event) => {
+    console.log('WebSocket disconnected');
+  });
+
+  ws.addEventListener('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+</script>
