@@ -129,7 +129,7 @@ func (proxy *Proxy) Stop() error {
 	defer cancel()
 
 	if err := proxy.proxyServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("Falied to shutdown proxy: %w", err)
+		return fmt.Errorf("Failed to shutdown proxy: %w", err)
 	}
 
 	return nil

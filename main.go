@@ -82,7 +82,13 @@ func main() {
 		}
 	}
 
-	builder := builder.New(cfg.RunCmd)
+	builder, newBuilderErr := builder.New(cfg.RunCmd)
+
+	if newBuilderErr != nil {
+		color.Red("failed to create new builder struct: %+v", newBuilderErr)
+		return
+	}
+
 	buildErr := builder.Build(cfg.BuildCmd)
 
 	if buildErr != nil {

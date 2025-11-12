@@ -13,11 +13,17 @@ type Builder struct {
 	runCmd string
 }
 
-func New(runCmd string) *Builder {
+func New(runCmd string) (*Builder, error) {
+	trimmed := strings.TrimSpace(runCmd)
+
+	if len(trimmed) == 0 {
+		return &Builder{}, fmt.Errorf("Invalid run command")
+	}
+
 	return &Builder{
 		cmd:    nil,
 		runCmd: runCmd,
-	}
+	}, nil
 }
 
 func (b *Builder) Start() error {
