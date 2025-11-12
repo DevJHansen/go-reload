@@ -36,7 +36,6 @@ func (b *Builder) Start() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// Set process group ID (Unix/Mac/Linux)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	err := cmd.Start()
@@ -52,16 +51,13 @@ func (b *Builder) Start() error {
 
 func (b *Builder) Stop() error {
 	if b.cmd == nil {
-		return nil // Also changed: not an error, just nothing to stop
+		return nil
 	}
 
-	// Get process group FIRST, before killing
 	pgid, err := syscall.Getpgid(b.cmd.Process.Pid)
 	if err == nil {
-		// Kill the entire process group
 		syscall.Kill(-pgid, syscall.SIGKILL)
 	} else {
-		// Fallback: just kill the process itself
 		b.cmd.Process.Kill()
 	}
 
@@ -85,12 +81,10 @@ func (b *Builder) Build(buildCmd string) error {
 }
 
 func KillProcessOnPort(port int) error {
-	// Use lsof to find process using the port
 	cmd := exec.Command("lsof", "-ti", fmt.Sprintf(":%d", port))
 	output, err := cmd.Output()
 
 	if err != nil {
-		// No process found, that's fine
 		return nil
 	}
 
@@ -99,7 +93,6 @@ func KillProcessOnPort(port int) error {
 		return nil
 	}
 
-	// Kill the process
 	killCmd := exec.Command("kill", "-9", pid)
 	return killCmd.Run()
 }

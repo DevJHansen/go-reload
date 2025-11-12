@@ -6,7 +6,6 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/DevJHansen/go-reload/config"
+	"github.com/fatih/color"
 	"github.com/gorilla/websocket"
 )
 
@@ -80,7 +80,7 @@ func Start(c *config.Config) (*Proxy, error) {
 		conn, err := p.upgrader.Upgrade(w, r, nil)
 
 		if err != nil {
-			log.Printf("Error upgrading to web socket: %v", err)
+			color.Red("Error upgrading to web socket: %v", err)
 			return
 		}
 
@@ -89,14 +89,11 @@ func Start(c *config.Config) (*Proxy, error) {
 			delete(p.clients, conn)
 			p.clientsMu.Unlock()
 			conn.Close()
-			log.Printf("WebSocket client disconnected. Total clients: %d", len(p.clients))
 		}()
 
 		p.clientsMu.Lock()
 		p.clients[conn] = true
 		p.clientsMu.Unlock()
-
-		log.Printf("WebSocket client connected. Total clients: %d", len(p.clients))
 
 		for {
 			_, _, err := conn.ReadMessage()
@@ -112,11 +109,11 @@ func Start(c *config.Config) (*Proxy, error) {
 		Handler: mux,
 	}
 
-	fmt.Printf("Proxy running on :%d, forwarding to :%d\n", c.ProxyPort, c.AppPort)
+	color.Cyan("Proxy running on :%d, forwarding to :%d", c.ProxyPort, c.AppPort)
 
 	go func() {
 		if err := p.proxyServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("Proxy server error: %v", err)
+			color.Red("Proxy server error: %v", err)
 		}
 	}()
 
@@ -142,12 +139,10 @@ func (p *Proxy) Broadcast(message string) {
 	p.clientsMu.RLock()
 	defer p.clientsMu.RUnlock()
 
-	log.Printf("Broadcasting to %d clients: %s", len(p.clients), message)
-
 	for client := range p.clients {
 		err := client.WriteMessage(websocket.TextMessage, []byte(message))
 		if err != nil {
-			log.Printf("Error broadcasting to client: %v", err)
+			color.Red("Error broadcasting to client: %v", err)
 		}
 	}
 }

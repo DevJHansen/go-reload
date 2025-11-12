@@ -13,6 +13,7 @@ import (
 	"github.com/DevJHansen/go-reload/builder"
 	"github.com/DevJHansen/go-reload/config"
 	"github.com/DevJHansen/go-reload/reloader"
+	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -47,7 +48,6 @@ func New(projectRoot string, b *builder.Builder, c *config.Config, p *reloader.P
 }
 
 func (w *Watcher) addDirectories() error {
-	// Starting at our project root recursively walk each directory and add it if it's not an excluded dir
 	return filepath.Walk(w.projectRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -93,24 +93,21 @@ func (w *Watcher) Watch() {
 			isWatchedFile := slices.Contains(w.config.Watch, ext)
 
 			if isRestartEvent && isWatchedFile {
-				fmt.Printf("File Changed: %s\n", event.Name)
+				color.Yellow("File Changed: %s", event.Name)
 
 				if debounceTimer != nil {
 					debounceTimer.Stop()
 				}
 
 				debounceTimer = time.AfterFunc(debounceDuration, func() {
-					// Stop the running server
 					w.builder.Stop()
 
-					// Rebuild
-					fmt.Println("Rebuilding...")
+					color.Cyan("Rebuilding...")
 					if err := w.builder.Build(w.config.BuildCmd); err != nil {
-						fmt.Printf("Build failed: %v\n", err)
-						return // Don't start if build failed
+						color.Red("Build failed: %v", err)
+						return
 					}
 
-					// Start the new version
 					w.builder.Start()
 					w.waitForServer()
 					w.proxy.Broadcast("reload")
@@ -118,7 +115,7 @@ func (w *Watcher) Watch() {
 			}
 
 		case err := <-w.watcher.Errors:
-			fmt.Printf("Watcher error: %v\n", err)
+			color.Red("Watcher error: %v", err)
 		}
 	}
 }
