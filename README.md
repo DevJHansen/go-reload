@@ -6,7 +6,7 @@ A powerful hot-reload development tool for Go applications with automatic browse
 
 - **Automatic File Watching & Reload**: Monitors your project and rebuilds when files change
 - **Browser Auto-Reload**: Automatically refreshes your browser when changes are detected (via WebSocket proxy)
-- **Debounced Rebuilds**: Intelligently debounces rapid file changes to prevent excessive rebuilds (300ms window)
+- **Debounced Rebuilds**: Intelligently debounces rapid file changes to prevent excessive rebuilds (default 300ms window)
 - **Reverse Proxy**: Built-in HTTP proxy that injects live-reload scripts into HTML responses
 - **Configurable**: Support for multiple file extensions and custom build/run commands
 - **Smart Directory Exclusion**: Excludes specified directories from watching
@@ -101,6 +101,7 @@ To use the browser auto-reload feature:
 ## Stopping
 
 Press `Ctrl/Command+C` to gracefully stop the watcher, proxy server, and your application. The tool will:
+
 - Close all WebSocket connections
 - Shut down the proxy server
 - Terminate the running application process
@@ -117,13 +118,6 @@ go-reload/
 └── reloader/         # Reverse proxy with WebSocket-based browser reloading
     └── socket.html   # WebSocket client script injected into HTML pages
 ```
-
-## Recent Changes
-
-- **Browser Auto-Reload**: Added WebSocket-based browser reloading via reverse proxy
-- **Debouncing**: Implemented 300ms debounce window to handle rapid file changes efficiently
-- **Proxy Server**: Built-in reverse proxy that injects live-reload scripts into HTML responses
-- **Server Health Check**: Waits for server to be ready before triggering browser reload
 
 ## Requirements
 
