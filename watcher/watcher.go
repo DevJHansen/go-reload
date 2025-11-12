@@ -82,6 +82,9 @@ func (w *Watcher) waitForServer() {
 }
 
 func (w *Watcher) Watch() {
+	var debounceTimer *time.Timer
+	debounceDuration := 300 * time.Millisecond
+
 	for {
 		select {
 		case event := <-w.watcher.Events:
@@ -92,20 +95,26 @@ func (w *Watcher) Watch() {
 			if isRestartEvent && isWatchedFile {
 				fmt.Printf("File Changed: %s\n", event.Name)
 
-				// Stop the running server
-				w.builder.Stop()
-
-				// Rebuild
-				fmt.Println("Rebuilding...")
-				if err := w.builder.Build(w.config.BuildCmd); err != nil {
-					fmt.Printf("Build failed: %v\n", err)
-					continue // Don't start if build failed
+				if debounceTimer != nil {
+					debounceTimer.Stop()
 				}
 
-				// Start the new version
-				w.builder.Start()
-				w.waitForServer()
-				w.proxy.Broadcast("reload")
+				debounceTimer = time.AfterFunc(debounceDuration, func() {
+					// Stop the running server
+					w.builder.Stop()
+
+					// Rebuild
+					fmt.Println("Rebuilding...")
+					if err := w.builder.Build(w.config.BuildCmd); err != nil {
+						fmt.Printf("Build failed: %v\n", err)
+						return // Don't start if build failed
+					}
+
+					// Start the new version
+					w.builder.Start()
+					w.waitForServer()
+					w.proxy.Broadcast("reload")
+				})
 			}
 
 		case err := <-w.watcher.Errors:
